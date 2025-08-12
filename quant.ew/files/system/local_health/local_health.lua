@@ -557,6 +557,26 @@ function module.on_world_update()
         end
     end
 
+    -- Temple Revive mode: any living player can revive all dead players at the temple
+    if ctx.proxy_opt.temple_revive_all and notplayer_active then
+        local x, y = EntityGetTransform(ctx.my_player.entity)
+        for _, ent in ipairs(EntityGetInRadiusWithTag(x, y, 14, "drillable")) do
+            if EntityGetFilename(ent) == "data/entities/items/pickup/heart_fullhp_temple.xml" then
+                GameRemoveFlagRun("ew_flag_notplayer_active")
+                EntityKill(ent)
+                EntityRemoveFromParent(ctx.my_player.entity)
+                ent = end_poly_effect(ctx.my_player.entity)
+                remove_stuff(ent)
+                polymorph.switch_entity(ent)
+                spectate.disable_throwing(false, ctx.my_player.entity)
+                reduce_hp()
+                rpc.revive_all_dead_players()
+                first = false
+                break
+            end
+        end
+    end
+
     local hp_new, max_hp_new, has_hp = util.get_ent_health(ctx.my_player.entity)
     if not ctx.my_player.currently_polymorphed and has_hp and hp_new <= 0 then
         -- Restore the player back to small amount of hp.
@@ -580,6 +600,13 @@ function module.on_world_update()
         GuiStartFrame(gui)
         local w, h = GuiGetScreenDimensions(gui)
         local note = "find potion mimic player at last point of death, throw at full hp to revive"
+        local tw, th = GuiGetTextDimensions(gui, note)
+        GuiText(gui, w - 2 - tw, h - 1 - th, note)
+    end
+    if ctx.proxy_opt.temple_revive_all and first and notplayer_active then
+        GuiStartFrame(gui)
+        local w, h = GuiGetScreenDimensions(gui)
+        local note = "find temple heart and touch it to revive all dead players"
         local tw, th = GuiGetTextDimensions(gui, note)
         GuiText(gui, w - 2 - tw, h - 1 - th, note)
     end
@@ -693,6 +720,30 @@ function rpc.revive_message()
     GamePrint(full_msg)
 end
 
+rpc.opts_everywhere()
+rpc.opts_reliable()
+function rpc.revive_all_dead_players()
+    local reviver_nickname = ctx.rpc_player_data.name
+    local full_msg = reviver_nickname .. " revived all dead players at the temple"
+    GamePrint(full_msg)
+
+    -- Revive all dead players
+    for peer_id, player_data in pairs(ctx.players) do
+        if peer_id ~= ctx.my_id and not player_data.status.is_alive then
+            -- This will be handled by each client's on_poly_death when they receive this
+            rpc.trigger_temple_revive(peer_id)
+        end
+    end
+end
+
+rpc.opts_reliable()
+function rpc.trigger_temple_revive(target_peer_id)
+    if ctx.my_id == target_peer_id then
+        -- This player should be revived
+        ctx.cap.health.on_poly_death()
+    end
+end
+
 -- Provides health capability
 ctx.cap.health = {
     --health = module.health,
@@ -715,6 +766,10 @@ ctx.cap.health = {
                     wait(1)
                     player_died()
                 end)
+                return
+            end
+            if ctx.proxy_opt.temple_revive_all then
+                -- In temple revive mode, don't auto-revive - wait for temple heart
                 return
             end
             rpc.revive_message()
@@ -813,6 +868,7 @@ function rpc.melee_damage_client(target_peer, damage, message)
         EntityInflictDamage(ctx.my_player.entity, damage, "DAMAGE_MELEE", message, "NONE", 0, 0, 0)
     end
 end
+
 util.add_cross_call("ew_ds_client_damaged", rpc.melee_damage_client)
 
 rpc.opts_everywhere()
