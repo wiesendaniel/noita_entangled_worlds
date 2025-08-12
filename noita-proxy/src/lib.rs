@@ -80,6 +80,7 @@ impl GameMode {
             GameMode::SharedHealth => Color32::LIGHT_BLUE,
             GameMode::LocalHealth(LocalHealthMode::Normal) => Color32::GOLD,
             GameMode::LocalHealth(LocalHealthMode::Alternate) => Color32::GREEN,
+            GameMode::LocalHealth(LocalHealthMode::TempleRevive) => Color32::LIGHT_GREEN,
             GameMode::LocalHealth(LocalHealthMode::PermaDeath) => Color32::ORANGE,
             GameMode::LocalHealth(LocalHealthMode::PvP) => Color32::RED,
         }
@@ -92,6 +93,7 @@ impl Display for GameMode {
             GameMode::SharedHealth => "Shared",
             GameMode::LocalHealth(LocalHealthMode::Normal) => "LocalNormal",
             GameMode::LocalHealth(LocalHealthMode::Alternate) => "LocalAlternate",
+            GameMode::LocalHealth(LocalHealthMode::TempleRevive) => "LocalTempleRevive",
             GameMode::LocalHealth(LocalHealthMode::PermaDeath) => "LocalPermadeath",
             GameMode::LocalHealth(LocalHealthMode::PvP) => "PvP",
         };
@@ -107,6 +109,7 @@ impl FromStr for GameMode {
             "Shared" => Ok(GameMode::SharedHealth),
             "LocalNormal" => Ok(GameMode::LocalHealth(LocalHealthMode::Normal)),
             "LocalAlternate" => Ok(GameMode::LocalHealth(LocalHealthMode::Alternate)),
+            "LocalTempleRevive" => Ok(GameMode::LocalHealth(LocalHealthMode::TempleRevive)),
             "LocalPermadeath" => Ok(GameMode::LocalHealth(LocalHealthMode::PermaDeath)),
             "PvP" => Ok(GameMode::LocalHealth(LocalHealthMode::PvP)),
             _ => Err(()),
@@ -118,6 +121,7 @@ impl FromStr for GameMode {
 pub enum LocalHealthMode {
     Normal,
     Alternate,
+    TempleRevive,
     PermaDeath,
     PvP,
 }
@@ -183,6 +187,13 @@ impl GameSettings {
                                 &mut temp,
                                 GameMode::LocalHealth(LocalHealthMode::Alternate),
                                 tr("Local-health-alt"),
+                            )
+                            .changed()
+                        || ui
+                            .radio_value(
+                                &mut temp,
+                                GameMode::LocalHealth(LocalHealthMode::TempleRevive),
+                                tr("game_mode_LocalTempleRevive"),
                             )
                             .changed()
                         || ui
@@ -273,6 +284,21 @@ impl GameSettings {
                                         game_settings.global_hp_loss.unwrap_or(def.global_hp_loss);
                                     if ui.checkbox(&mut temp, tr("global_hp_loss")).changed() {
                                         game_settings.global_hp_loss = Some(temp)
+                                    }
+                                }
+                            }
+                            LocalHealthMode::TempleRevive => {
+                                ui.label(tr("local_health_desc_1"));
+                                ui.add_space(5.0);
+                                ui.label("Any living player can revive all dead players at the temple.");
+                                ui.add_space(5.0);
+                                ui.label(tr("Health-percent-lost-on-reviving"));
+                                {
+                                    let mut temp = game_settings
+                                        .health_lost_on_revive
+                                        .unwrap_or(def.health_lost_on_revive);
+                                    if ui.add(Slider::new(&mut temp, 0..=100)).changed() {
+                                        game_settings.health_lost_on_revive = Some(temp)
                                     }
                                 }
                             }

@@ -187,4 +187,5 @@ game_mode_Shared = Shared health
 game_mode_LocalNormal = Local health
 game_mode_LocalPermadeath = Local health (Permadeath)
 game_mode_LocalAlternate = Local health (Alternate)
+game_mode_LocalTempleRevive = Local health (Temple Revive)
 game_mode_PvP = PvP
